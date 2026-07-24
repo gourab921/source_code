@@ -1,0 +1,42 @@
+name: Daily Backup
+
+on:
+  schedule:
+    - cron: "0 0 * * *"   # every day at 00:00 UTC
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+
+      - name: Clone backup repository
+        run: |
+          git clone https://x-access-token:${{ secrets.BACKUP_TOKEN }}@github.com/gourab921/backup_code.git backup
+
+      - name: Copy files
+        run: |
+          rsync -av --delete \
+            --exclude=".git" \
+            --exclude=".github" \
+            ./ backup/
+
+      - name: Commit if changed
+        run: |
+          cd backup
+
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add .
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+
+          git commit -m "Backup $(date '+%Y-%m-%d %H:%M:%S')"
+          git push
